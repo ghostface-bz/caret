@@ -56,6 +56,10 @@ class Scan(Base):
     )
     error: Mapped[str | None] = mapped_column(Text, nullable=True)
 
+    # SHA-256 over the materialized file tree — lets an identical re-submission
+    # reuse a prior completed scan's findings instead of re-running scanners.
+    content_hash: Mapped[str | None] = mapped_column(Text, nullable=True, index=True)
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )

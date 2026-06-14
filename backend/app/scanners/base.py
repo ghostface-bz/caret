@@ -24,8 +24,6 @@ from app.config import settings
 
 logger = logging.getLogger(__name__)
 
-ONE_AND_A_HALF_CPUS = 1_500_000_000  # nano_cpus
-
 
 @dataclass
 class ContainerResult:
@@ -109,8 +107,8 @@ def run_scanner_container(
             command=command,
             mounts=mounts,
             network_disabled=True,
-            mem_limit="2g",
-            nano_cpus=ONE_AND_A_HALF_CPUS,
+            mem_limit=settings.SCANNER_MEM_LIMIT,
+            nano_cpus=int(settings.SCANNER_CPUS * 1_000_000_000),
             user="1000:1000",
             read_only=read_only_rootfs,
             tmpfs=tmpfs,

@@ -29,6 +29,15 @@ class Settings:
     SEMGREP_RULES_VOLUME: str = os.environ.get("SEMGREP_RULES_VOLUME", "semgrep_rules")
     TRIVY_CACHE_VOLUME: str = os.environ.get("TRIVY_CACHE_VOLUME", "trivy_cache")
 
+    # Scanner resource limits / concurrency. Bounded parallelism: at most
+    # SCANNER_CONCURRENCY scanner containers run at once, each capped at
+    # SCANNER_MEM_LIMIT — so peak scanner memory = concurrency * mem_limit.
+    # Default 1 (sequential, ~2 GB peak) is memory-safe on small hosts; raise
+    # to 2-3 on a box with headroom for faster wall-clock.
+    SCANNER_CONCURRENCY: int = int(os.environ.get("SCANNER_CONCURRENCY", "1"))
+    SCANNER_MEM_LIMIT: str = os.environ.get("SCANNER_MEM_LIMIT", "2g")
+    SCANNER_CPUS: float = float(os.environ.get("SCANNER_CPUS", "1.5"))
+
     MAX_UPLOAD_BYTES: int = 50 * 1024 * 1024  # 50 MB cap per API_CONTRACT.md
 
 

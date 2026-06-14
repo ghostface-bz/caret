@@ -14,15 +14,18 @@ Run with `python -m app.worker` (see docker-compose.yml `worker` service).
 
 from __future__ import annotations
 
+import hashlib
 import logging
 import shutil
 import subprocess
 import uuid
 import zipfile
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from pathlib import Path
 
 from rq import Worker
+from sqlalchemy import select
 
 from app.config import settings
 from app.db import SessionLocal
@@ -107,25 +110,81 @@ def _materialize_git(source_ref: str, dest: Path) -> None:
         shutil.rmtree(git_dir, ignore_errors=True)
 
 
+def _compute_content_hash(root: Path) -> str:
+    """SHA-256 over the file tree (sorted relative path + bytes) for cache lookups."""
+    h = hashlib.sha256()
+    files = sorted(
+        p for p in root.rglob("*") if p.is_file() and not p.is_symlink()
+    )
+    for p in files:
+        h.update(p.relative_to(root).as_posix().encode("utf-8"))
+        h.update(b"\0")
+        try:
+            h.update(p.read_bytes())
+        except OSError:
+            pass  # unreadable file — path alone still contributes to the hash
+        h.update(b"\0")
+    return h.hexdigest()
+
+
+def _run_one_scanner(module, name: str, scan_id: str) -> tuple[list[RawFinding], str | None]:
+    """Run a single scanner; return (findings, error_or_None). Never raises."""
+    try:
+        logger.info("scan %s: running %s", scan_id, name)
+        findings = module.run(scan_id, scan_id)
+        logger.info("scan %s: %s produced %d findings", scan_id, name, len(findings))
+        return findings, None
+    except ScannerError as exc:
+        logger.exception("scan %s: %s failed", scan_id, name)
+        return [], str(exc)
+    except Exception as exc:  # noqa: BLE001 - isolate scanner failures
+        logger.exception("scan %s: %s failed unexpectedly", scan_id, name)
+        return [], f"{name} scanner failed: {exc}"
+
+
 def _run_all_scanners(scan_id: str) -> tuple[list[RawFinding], list[str]]:
-    """Run each scanner against `<SCAN_DATA_DIR>/<scan_id>`, collecting findings + errors."""
+    """Run the scanners against `<SCAN_DATA_DIR>/<scan_id>` with bounded parallelism.
+
+    At most `SCANNER_CONCURRENCY` containers run at once (each capped at
+    `SCANNER_MEM_LIMIT`), so peak memory stays bounded. Each scanner just blocks
+    on `container.wait()` (I/O), so threads give real overlap despite the GIL.
+    """
     all_findings: list[RawFinding] = []
     errors: list[str] = []
 
-    for module, name in SCANNERS:
-        try:
-            logger.info("scan %s: running %s", scan_id, name)
-            findings = module.run(scan_id, scan_id)
-            logger.info("scan %s: %s produced %d findings", scan_id, name, len(findings))
+    max_workers = max(1, settings.SCANNER_CONCURRENCY)
+    with ThreadPoolExecutor(max_workers=max_workers) as pool:
+        futures = [
+            pool.submit(_run_one_scanner, module, name, scan_id)
+            for module, name in SCANNERS
+        ]
+        for fut in futures:
+            findings, error = fut.result()
             all_findings.extend(findings)
-        except ScannerError as exc:
-            logger.exception("scan %s: %s failed", scan_id, name)
-            errors.append(str(exc))
-        except Exception as exc:  # noqa: BLE001 - isolate scanner failures
-            logger.exception("scan %s: %s failed unexpectedly", scan_id, name)
-            errors.append(f"{name} scanner failed: {exc}")
+            if error:
+                errors.append(error)
 
     return all_findings, errors
+
+
+def _add_finding_from(db, scan_id: uuid.UUID, rf) -> None:
+    """Persist a Finding row from a RawFinding (worker) or a prior Finding (cache clone)."""
+    db.add(
+        Finding(
+            scan_id=scan_id,
+            tool=rf.tool,
+            rule_id=rf.rule_id,
+            severity=rf.severity,
+            title=rf.title,
+            message=rf.message,
+            file_path=rf.file_path,
+            line_start=rf.line_start,
+            line_end=rf.line_end,
+            cwe=rf.cwe,
+            owasp=rf.owasp,
+            raw=rf.raw,
+        )
+    )
 
 
 def run_scan(scan_id: str) -> None:
@@ -157,25 +216,41 @@ def run_scan(scan_id: str) -> None:
             db.commit()
             return
 
+        # Content-hash cache: if identical code was already scanned, clone those
+        # findings instead of re-running the scanners (instant re-scans).
+        content_hash = _compute_content_hash(dest)
+        scan.content_hash = content_hash
+        db.commit()
+
+        cached = db.execute(
+            select(Scan)
+            .where(
+                Scan.content_hash == content_hash,
+                Scan.status == ScanStatus.completed,
+                Scan.id != scan.id,
+            )
+            .order_by(Scan.finished_at.desc())
+        ).scalars().first()
+
+        if cached is not None:
+            prior = db.execute(
+                select(Finding).where(Finding.scan_id == cached.id)
+            ).scalars().all()
+            for pf in prior:
+                _add_finding_from(db, scan.id, pf)
+            scan.status = ScanStatus.completed
+            scan.finished_at = datetime.now(timezone.utc)
+            db.commit()
+            logger.info(
+                "scan %s: cache hit on %s (%d findings cloned)",
+                scan_id, cached.id, len(prior),
+            )
+            return
+
         findings, errors = _run_all_scanners(scan_id)
 
         for rf in findings:
-            db.add(
-                Finding(
-                    scan_id=scan.id,
-                    tool=rf.tool,
-                    rule_id=rf.rule_id,
-                    severity=rf.severity,
-                    title=rf.title,
-                    message=rf.message,
-                    file_path=rf.file_path,
-                    line_start=rf.line_start,
-                    line_end=rf.line_end,
-                    cwe=rf.cwe,
-                    owasp=rf.owasp,
-                    raw=rf.raw,
-                )
-            )
+            _add_finding_from(db, scan.id, rf)
 
         if errors and not findings:
             # All scanners failed and produced nothing useful — mark failed.
