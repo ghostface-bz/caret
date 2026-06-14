@@ -35,8 +35,8 @@ normalized findings before anyone touches styling.
 
 ## Status log (orchestrator updates)
 - [x] P0 Foundation
-- [ ] P1 Backend skeleton + gitleaks pipeline
-- [ ] P2 Backend semgrep + trivy + git import
-- [ ] P3 Frontend dashboard
-- [ ] P4 Integration + DoD verified
-- [ ] P5 Stretch
+- [x] P1 Backend skeleton + gitleaks pipeline
+- [x] P2 Backend semgrep + trivy + git import
+- [x] P3 Frontend dashboard
+- [x] P4 Integration + DoD verified — fixture scan: gitleaks 1 + semgrep 10 + trivy 26 = 37 findings; CORS + SARIF + filters verified live; frontend renders against live backend
+- [ ] P5 Stretch — minimal auth, PDF report (Typst), trends

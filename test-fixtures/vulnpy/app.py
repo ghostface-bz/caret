@@ -10,8 +10,8 @@ import flask
 
 app = flask.Flask(__name__)
 
-# gitleaks: hard-coded credential (CWE-798)
-AWS_SECRET_ACCESS_KEY = "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
+# gitleaks: hard-coded high-entropy credential (CWE-798). Fake/invalid — test data only.
+SECRET_API_KEY = "x9Qf3Tz7Kp2Lw8Rn5Vb1Yc4Md6Hj0Gs3Uw7Ee2Ri8Ao"
 DB_PASSWORD = "SuperSecret123!"
 
 

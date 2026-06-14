@@ -77,4 +77,6 @@ volumes:
   scan_data:
     name: scr_scan_data   # explicit name so worker can mount it into sibling containers
   semgrep_rules:
+    name: scr_semgrep_rules   # pinned so DooD scanner siblings mount it by a stable name
   trivy_cache:
+    name: scr_trivy_cache
