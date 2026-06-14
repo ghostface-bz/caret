@@ -1,0 +1,6 @@
+# Intentionally outdated/vulnerable pins so trivy (SCA) reports CVEs. Not for real use.
+Flask==0.12.2
+Jinja2==2.10
+Werkzeug==0.14.1
+PyYAML==3.13
+requests==2.19.1

@@ -1,0 +1,80 @@
+# Foundation contract — defines services, ports, env, and volumes.
+# Agents implement code/Dockerfiles to match THIS. Do not change service names,
+# ports, env var names, or volume names without updating docs/API_CONTRACT.md.
+
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: scr
+      POSTGRES_PASSWORD: scr
+      POSTGRES_DB: scr
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U scr"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  backend:
+    build: ./backend
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    environment:
+      DATABASE_URL: postgresql+psycopg://scr:scr@db:5432/scr
+      REDIS_URL: redis://redis:6379/0
+      SCAN_DATA_DIR: /data
+      SCAN_DATA_VOLUME: scr_scan_data   # named volume scanner siblings mount by name
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+      - scan_data:/data
+    depends_on:
+      db: { condition: service_healthy }
+      redis: { condition: service_healthy }
+
+  worker:
+    build: ./backend
+    command: python -m app.worker
+    environment:
+      DATABASE_URL: postgresql+psycopg://scr:scr@db:5432/scr
+      REDIS_URL: redis://redis:6379/0
+      SCAN_DATA_DIR: /data
+      SCAN_DATA_VOLUME: scr_scan_data
+    volumes:
+      - ./backend:/app
+      - scan_data:/data
+      - /var/run/docker.sock:/var/run/docker.sock   # spawn scanner siblings (DooD)
+      - semgrep_rules:/rules                          # pre-fetched offline rules
+      - trivy_cache:/trivy-cache                      # pre-fetched offline vuln DB
+    depends_on:
+      db: { condition: service_healthy }
+      redis: { condition: service_healthy }
+
+  frontend:
+    build: ./frontend
+    environment:
+      VITE_API_BASE: http://localhost:8000/api
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    depends_on:
+      - backend
+
+volumes:
+  pgdata:
+  scan_data:
+    name: scr_scan_data   # explicit name so worker can mount it into sibling containers
+  semgrep_rules:
+  trivy_cache:
