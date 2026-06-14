@@ -9,6 +9,8 @@ export type Severity = "critical" | "high" | "medium" | "low" | "info";
 
 export type Tool = "gitleaks" | "semgrep" | "trivy";
 
+export type TriageStatus = "open" | "false_positive" | "resolved" | "suppressed";
+
 export interface SeverityCounts {
   critical: number;
   high: number;
@@ -57,6 +59,9 @@ export interface Finding {
   line_end: number | null;
   cwe: string | null;
   owasp: string | null;
+  triage_status: TriageStatus;
+  triage_note: string | null;
+  triaged_at: string | null;
 }
 
 /** Optional, combinable query filters for GET /api/scans/{id}/findings */
@@ -66,6 +71,8 @@ export interface FindingsQuery {
   cwe?: string;
   file?: string;
   q?: string;
+  triage_status?: TriageStatus;
+  new_only?: boolean;
 }
 
 export interface HealthResponse {
@@ -91,6 +98,20 @@ export interface ScanProgressSnapshot {
 export const SEVERITIES: Severity[] = ["critical", "high", "medium", "low", "info"];
 
 export const TOOLS: Tool[] = ["gitleaks", "semgrep", "trivy"];
+
+export const TRIAGE_STATUSES: TriageStatus[] = [
+  "open",
+  "false_positive",
+  "resolved",
+  "suppressed",
+];
+
+export const TRIAGE_LABELS: Record<TriageStatus, string> = {
+  open: "Open",
+  false_positive: "False positive",
+  resolved: "Resolved",
+  suppressed: "Suppressed",
+};
 
 export function emptyCounts(): SeverityCounts {
   return { critical: 0, high: 0, medium: 0, low: 0, info: 0, total: 0 };

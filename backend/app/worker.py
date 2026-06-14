@@ -30,7 +30,15 @@ from sqlalchemy import select
 from app import events
 from app.config import settings
 from app.db import SessionLocal
-from app.models import Finding, Scan, ScanStatus, Severity, SourceType
+from app.models import (
+    Finding,
+    Scan,
+    ScanStatus,
+    Severity,
+    SourceType,
+    TriageStatus,
+    finding_fingerprint,
+)
 from app.queue import redis_conn, scan_queue
 from app.scanners import gitleaks, semgrep, trivy
 from app.scanners.base import ScannerError
@@ -200,8 +208,48 @@ def _add_finding_from(db, scan_id: uuid.UUID, rf) -> None:
             cwe=rf.cwe,
             owasp=rf.owasp,
             raw=rf.raw,
+            fingerprint=finding_fingerprint(rf.tool, rf.rule_id, rf.file_path, rf.line_start),
         )
     )
+
+
+def _carry_over_triage(db, scan: Scan) -> None:
+    """Inherit triage state from the most recent prior completed scan of the same
+    source_ref, matched by fingerprint — so a false-positive stays suppressed
+    across re-scans. Must be called after this scan's findings are flushed.
+    """
+    prior = db.execute(
+        select(Scan)
+        .where(
+            Scan.source_ref == scan.source_ref,
+            Scan.status == ScanStatus.completed,
+            Scan.id != scan.id,
+            Scan.finished_at < scan.finished_at,
+        )
+        .order_by(Scan.finished_at.desc())
+    ).scalars().first()
+    if prior is None:
+        return
+
+    triaged = db.execute(
+        select(Finding.fingerprint, Finding.triage_status, Finding.triage_note)
+        .where(
+            Finding.scan_id == prior.id,
+            Finding.triage_status != TriageStatus.open,
+            Finding.fingerprint.is_not(None),
+        )
+    ).all()
+    if not triaged:
+        return
+    prior_map = {fp: (st, note) for fp, st, note in triaged}
+
+    for f in db.execute(
+        select(Finding).where(Finding.scan_id == scan.id)
+    ).scalars():
+        match = prior_map.get(f.fingerprint)
+        if match:
+            f.triage_status, f.triage_note = match
+            f.triaged_at = datetime.now(timezone.utc)
 
 
 def run_scan(scan_id: str) -> None:
@@ -259,6 +307,8 @@ def run_scan(scan_id: str) -> None:
                 _add_finding_from(db, scan.id, pf)
             scan.status = ScanStatus.completed
             scan.finished_at = datetime.now(timezone.utc)
+            db.flush()
+            _carry_over_triage(db, scan)
             db.commit()
             logger.info(
                 "scan %s: cache hit on %s (%d findings cloned)",
@@ -283,6 +333,9 @@ def run_scan(scan_id: str) -> None:
                 scan.error = "; ".join(errors)[:4000]
 
         scan.finished_at = datetime.now(timezone.utc)
+        if scan.status == ScanStatus.completed:
+            db.flush()
+            _carry_over_triage(db, scan)
         db.commit()
         events.scan_finished(scan_id, scan.status.value, _severity_counts(findings))
         logger.info(

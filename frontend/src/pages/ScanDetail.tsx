@@ -1,4 +1,4 @@
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useParams } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { ApiError, api } from "../api/client";
@@ -6,7 +6,7 @@ import StatusBadge from "../components/StatusBadge";
 import SeverityBadge from "../components/SeverityBadge";
 import ScannerProgress from "../components/ScannerProgress";
 import { SeveritySummaryCards } from "../components/SeveritySummary";
-import { SEVERITIES, TOOLS } from "../api/types";
+import { SEVERITIES, TOOLS, TRIAGE_LABELS, TRIAGE_STATUSES } from "../api/types";
 import type {
   FindingsQuery,
   ScanEvent,
@@ -14,6 +14,7 @@ import type {
   ScanProgressSnapshot,
   Severity,
   Tool,
+  TriageStatus,
 } from "../api/types";
 
 export default function ScanDetail() {
@@ -25,6 +26,8 @@ export default function ScanDetail() {
   const [tool, setTool] = useState<Tool | "">("");
   const [q, setQ] = useState("");
   const [file, setFile] = useState("");
+  const [triageStatus, setTriageStatus] = useState<TriageStatus | "">("");
+  const [newOnly, setNewOnly] = useState(false);
 
   // Live per-scanner progress, driven by the SSE stream (no polling).
   const [scannerStates, setScannerStates] = useState<Partial<Record<Tool, ScannerRunState>>>({});
@@ -41,12 +44,22 @@ export default function ScanDetail() {
     tool: tool || undefined,
     q: q.trim() || undefined,
     file: file.trim() || undefined,
+    triage_status: triageStatus || undefined,
+    new_only: newOnly || undefined,
   };
 
   const findingsQuery = useQuery({
     queryKey: ["findings", scanId, filters],
     queryFn: () => api.getFindings(scanId, filters),
     enabled: !!scanId,
+  });
+
+  const triageMutation = useMutation({
+    mutationFn: ({ findingId, status }: { findingId: string; status: TriageStatus }) =>
+      api.updateTriage(scanId, findingId, status),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["findings", scanId] });
+    },
   });
 
   const liveStatus = scanQuery.data?.status;
@@ -257,6 +270,35 @@ export default function ScanDetail() {
               className="w-full rounded-md border border-gray-300 px-2 py-1.5 text-sm text-gray-900 placeholder:text-gray-400 focus:border-gray-500 focus:outline-none"
             />
           </div>
+          <div>
+            <label htmlFor="filter-triage" className="mb-1 block text-xs font-medium text-gray-500">
+              Triage
+            </label>
+            <select
+              id="filter-triage"
+              value={triageStatus}
+              onChange={(e) => setTriageStatus(e.target.value as TriageStatus | "")}
+              className="w-full rounded-md border border-gray-300 px-2 py-1.5 text-sm text-gray-900 focus:border-gray-500 focus:outline-none"
+            >
+              <option value="">All</option>
+              {TRIAGE_STATUSES.map((t) => (
+                <option key={t} value={t}>
+                  {TRIAGE_LABELS[t]}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="flex items-end">
+            <label className="flex cursor-pointer items-center gap-2 text-sm text-gray-700">
+              <input
+                type="checkbox"
+                checked={newOnly}
+                onChange={(e) => setNewOnly(e.target.checked)}
+                className="h-4 w-4 rounded border-gray-300"
+              />
+              New since last scan
+            </label>
+          </div>
         </div>
 
         {findingsQuery.isLoading ? (
@@ -286,11 +328,17 @@ export default function ScanDetail() {
                   <th className="px-3 py-2">File:Line</th>
                   <th className="px-3 py-2">CWE</th>
                   <th className="px-3 py-2">OWASP</th>
+                  <th className="px-3 py-2">Triage</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {findingsQuery.data.map((finding) => (
-                  <tr key={finding.id} className="align-top hover:bg-gray-50">
+                  <tr
+                    key={finding.id}
+                    className={`align-top hover:bg-gray-50 ${
+                      finding.triage_status !== "open" ? "opacity-50" : ""
+                    }`}
+                  >
                     <td className="px-3 py-2 whitespace-nowrap text-gray-700">{finding.tool}</td>
                     <td className="px-3 py-2 whitespace-nowrap">
                       <SeverityBadge severity={finding.severity} />
@@ -307,6 +355,26 @@ export default function ScanDetail() {
                     </td>
                     <td className="px-3 py-2 whitespace-nowrap text-gray-700">{finding.cwe ?? "—"}</td>
                     <td className="px-3 py-2 whitespace-nowrap text-gray-700">{finding.owasp ?? "—"}</td>
+                    <td className="px-3 py-2 whitespace-nowrap">
+                      <select
+                        aria-label="Triage status"
+                        value={finding.triage_status}
+                        disabled={triageMutation.isPending}
+                        onChange={(e) =>
+                          triageMutation.mutate({
+                            findingId: finding.id,
+                            status: e.target.value as TriageStatus,
+                          })
+                        }
+                        className="rounded-md border border-gray-300 px-1.5 py-1 text-xs text-gray-900 focus:border-gray-500 focus:outline-none"
+                      >
+                        {TRIAGE_STATUSES.map((t) => (
+                          <option key={t} value={t}>
+                            {TRIAGE_LABELS[t]}
+                          </option>
+                        ))}
+                      </select>
+                    </td>
                   </tr>
                 ))}
               </tbody>

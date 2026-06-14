@@ -6,6 +6,7 @@ import json
 import re
 import uuid
 import zipfile
+from datetime import datetime, timezone
 from io import BytesIO
 from pathlib import Path
 from typing import Annotated
@@ -20,10 +21,17 @@ from starlette.datastructures import UploadFile
 from app import events
 from app.config import settings
 from app.db import get_db
-from app.models import Finding, Scan, ScanStatus, Severity, SourceType, Tool
+from app.models import Finding, Scan, ScanStatus, Severity, SourceType, Tool, TriageStatus
 from app.queue import enqueue_scan
 from app.sarif import build_sarif
-from app.schemas import FindingOut, ScanCreateResponse, ScanDetail, ScanListItem, SeverityCounts
+from app.schemas import (
+    FindingOut,
+    ScanCreateResponse,
+    ScanDetail,
+    ScanListItem,
+    SeverityCounts,
+    TriageUpdate,
+)
 
 router = APIRouter(prefix="/scans", tags=["scans"])
 
@@ -255,6 +263,31 @@ async def scan_events(scan_id: uuid.UUID, db: Annotated[Session, Depends(get_db)
     )
 
 
+def _prior_fingerprints(db: Session, scan: Scan) -> set[str] | None:
+    """Fingerprints from the completed scan of the same source_ref that finished
+    immediately BEFORE this one. None means there is no prior scan (all 'new')."""
+    if scan.finished_at is None:
+        return None
+    prior = db.execute(
+        select(Scan)
+        .where(
+            Scan.source_ref == scan.source_ref,
+            Scan.status == ScanStatus.completed,
+            Scan.id != scan.id,
+            Scan.finished_at < scan.finished_at,
+        )
+        .order_by(Scan.finished_at.desc())
+    ).scalars().first()
+    if prior is None:
+        return None
+    rows = db.execute(
+        select(Finding.fingerprint).where(
+            Finding.scan_id == prior.id, Finding.fingerprint.is_not(None)
+        )
+    ).all()
+    return {r[0] for r in rows}
+
+
 @router.get("/{scan_id}/findings", response_model=list[FindingOut])
 def get_findings(
     scan_id: uuid.UUID,
@@ -264,6 +297,8 @@ def get_findings(
     cwe: Annotated[str | None, Query()] = None,
     file: Annotated[str | None, Query()] = None,
     q: Annotated[str | None, Query()] = None,
+    triage_status: Annotated[str | None, Query()] = None,
+    new_only: Annotated[bool, Query()] = False,
 ) -> list[FindingOut]:
     scan = db.get(Scan, scan_id)
     if scan is None:
@@ -283,6 +318,12 @@ def get_findings(
         except ValueError:
             raise HTTPException(status_code=400, detail=f"Invalid tool: {tool!r}")
 
+    if triage_status:
+        try:
+            stmt = stmt.where(Finding.triage_status == TriageStatus(triage_status))
+        except ValueError:
+            raise HTTPException(status_code=400, detail=f"Invalid triage_status: {triage_status!r}")
+
     if cwe:
         stmt = stmt.where(Finding.cwe == cwe)
 
@@ -293,10 +334,34 @@ def get_findings(
         like = f"%{q}%"
         stmt = stmt.where(Finding.title.ilike(like) | Finding.message.ilike(like))
 
+    if new_only:
+        prior_fps = _prior_fingerprints(db, scan)
+        if prior_fps:  # only constrain when a prior scan had fingerprints
+            stmt = stmt.where(Finding.fingerprint.not_in(prior_fps))
+
     stmt = stmt.order_by(Finding.severity, Finding.file_path)
 
     findings = db.execute(stmt).scalars().all()
     return [FindingOut.model_validate(f) for f in findings]
+
+
+@router.patch("/{scan_id}/findings/{finding_id}", response_model=FindingOut)
+def update_finding_triage(
+    scan_id: uuid.UUID,
+    finding_id: uuid.UUID,
+    body: TriageUpdate,
+    db: Annotated[Session, Depends(get_db)],
+) -> FindingOut:
+    finding = db.get(Finding, finding_id)
+    if finding is None or finding.scan_id != scan_id:
+        raise HTTPException(status_code=404, detail="Finding not found.")
+
+    finding.triage_status = body.triage_status
+    finding.triage_note = body.triage_note
+    finding.triaged_at = datetime.now(timezone.utc)
+    db.commit()
+    db.refresh(finding)
+    return FindingOut.model_validate(finding)
 
 
 @router.get("/{scan_id}/report.sarif")
@@ -305,8 +370,19 @@ def get_sarif_report(scan_id: uuid.UUID, db: Annotated[Session, Depends(get_db)]
     if scan is None:
         raise HTTPException(status_code=404, detail="Scan not found.")
 
+    # Suppressed / false-positive findings are excluded from the SARIF export
+    # so downstream tools (CI gates, dashboards) don't re-surface triaged noise.
     findings = (
-        db.execute(select(Finding).where(Finding.scan_id == scan_id).order_by(Finding.file_path))
+        db.execute(
+            select(Finding)
+            .where(
+                Finding.scan_id == scan_id,
+                Finding.triage_status.not_in(
+                    [TriageStatus.suppressed, TriageStatus.false_positive]
+                ),
+            )
+            .order_by(Finding.file_path)
+        )
         .scalars()
         .all()
     )

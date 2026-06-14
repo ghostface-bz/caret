@@ -8,7 +8,7 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict
 
-from app.models import ScanStatus, Severity, SourceType, Tool
+from app.models import ScanStatus, Severity, SourceType, Tool, TriageStatus
 
 
 class SeverityCounts(BaseModel):
@@ -76,6 +76,16 @@ class FindingOut(BaseModel):
     line_end: int | None = None
     cwe: str | None = None
     owasp: str | None = None
+    triage_status: TriageStatus = TriageStatus.open
+    triage_note: str | None = None
+    triaged_at: datetime | None = None
+
+
+class TriageUpdate(BaseModel):
+    """Body for `PATCH /api/scans/{id}/findings/{finding_id}`."""
+
+    triage_status: TriageStatus
+    triage_note: str | None = None
 
 
 class RawFinding(BaseModel):

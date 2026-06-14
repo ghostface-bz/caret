@@ -5,6 +5,7 @@ import type {
   ScanCreateResponse,
   ScanDetail,
   ScanListItem,
+  TriageStatus,
 } from "./types";
 
 /**
@@ -114,8 +115,24 @@ export const api = {
       cwe: query.cwe,
       file: query.file,
       q: query.q,
+      triage_status: query.triage_status,
+      new_only: query.new_only ? "true" : undefined,
     });
     return request<Finding[]>(`/scans/${id}/findings${qs}`);
+  },
+
+  /** PATCH /api/scans/{id}/findings/{findingId} — set triage state */
+  updateTriage(
+    scanId: string,
+    findingId: string,
+    triage_status: TriageStatus,
+    triage_note?: string | null,
+  ): Promise<Finding> {
+    return request<Finding>(`/scans/${scanId}/findings/${findingId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ triage_status, triage_note: triage_note ?? null }),
+    });
   },
 
   /** SSE endpoint URL for live scan progress — open with `new EventSource(...)` */

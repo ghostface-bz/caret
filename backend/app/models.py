@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import enum
+import hashlib
 import uuid
 from datetime import datetime
 
@@ -37,6 +38,13 @@ class Severity(str, enum.Enum):
     medium = "medium"
     low = "low"
     info = "info"
+
+
+class TriageStatus(str, enum.Enum):
+    open = "open"
+    false_positive = "false_positive"
+    resolved = "resolved"
+    suppressed = "suppressed"
 
 
 class Scan(Base):
@@ -103,4 +111,27 @@ class Finding(Base):
     owasp: Mapped[str | None] = mapped_column(Text, nullable=True)
     raw: Mapped[dict] = mapped_column(JSONB().with_variant(JSON, "sqlite"), nullable=False)
 
+    # Stable identity of a finding across scans: md5(tool:rule_id:file_path:line_start).
+    # Powers triage carry-over and the "new since last scan" baseline filter.
+    fingerprint: Mapped[str | None] = mapped_column(Text, nullable=True, index=True)
+    triage_status: Mapped[TriageStatus] = mapped_column(
+        Enum(TriageStatus, name="triage_status"),
+        nullable=False,
+        default=TriageStatus.open,
+        server_default=TriageStatus.open.value,
+    )
+    triage_note: Mapped[str | None] = mapped_column(Text, nullable=True)
+    triaged_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
     scan: Mapped["Scan"] = relationship(back_populates="findings")
+
+
+def finding_fingerprint(tool, rule_id: str, file_path: str, line_start: int | None) -> str:
+    """Stable cross-scan identity: md5(tool:rule_id:file_path:line_start).
+
+    Must stay in lockstep with the SQL backfill in migration 0003.
+    """
+    tool_val = tool.value if isinstance(tool, Tool) else str(tool)
+    line = "" if line_start is None else str(line_start)
+    basis = f"{tool_val}:{rule_id}:{file_path}:{line}"
+    return hashlib.md5(basis.encode("utf-8")).hexdigest()
