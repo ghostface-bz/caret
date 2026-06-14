@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "react-router-dom";
 import { ApiError, api } from "../api/client";
 import StatusBadge from "../components/StatusBadge";
+import SourceIcon from "../components/SourceIcon";
 import { SeveritySummaryInline } from "../components/SeveritySummary";
 import { relativeTime } from "../lib/ui";
 import type { ScanListItem } from "../api/types";
@@ -47,34 +48,39 @@ export default function ScanList() {
       ) : !data || data.length === 0 ? (
         <div className="card px-5 py-12 text-center text-[13px] text-faint">
           No scans yet.{" "}
-          <Link to="/new" className="text-lime hover:underline">
+          <Link to="/new" className="text-lime-text hover:underline">
             Start one →
           </Link>
         </div>
       ) : (
         <div className="card overflow-hidden">
-          <div className="grid grid-cols-[1fr_140px_180px_130px] gap-3.5 border-b border-line bg-bar px-5 py-2.5 text-[11px] font-semibold uppercase tracking-[.4px] text-fainter">
+          <div className="grid grid-cols-[1fr_110px_180px_130px] gap-3.5 border-b border-line bg-bar px-5 py-2.5 text-[11px] font-semibold uppercase tracking-[.4px] text-fainter">
             <span>Target</span>
-            <span>Status</span>
-            <span>Severity</span>
+            <span className="text-center">Status</span>
+            <span className="text-center">Severity</span>
             <span className="text-right">Scanned</span>
           </div>
           {data.map((scan, i) => (
             <div
               key={scan.id}
               onClick={() => navigate(`/scans/${scan.id}`)}
-              className="row-in grid cursor-pointer grid-cols-[1fr_140px_180px_130px] items-center gap-3.5 border-b border-line-soft px-5 py-3.5 transition-colors last:border-0 hover:bg-[#13161b]"
+              className="row-in grid cursor-pointer grid-cols-[1fr_110px_180px_130px] items-center gap-3.5 border-b border-line-soft px-5 py-3.5 transition-colors last:border-0 hover:bg-hover"
               style={{ animationDelay: `${Math.min(i, 14) * 26}ms` }}
             >
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
-                  <span className="mono text-[10px] uppercase tracking-wide text-lime">{scan.source_type}</span>
+                  <SourceIcon type={scan.source_type} />
+                  <span className="mono text-[10px] uppercase tracking-wide text-lime-text">{scan.source_type}</span>
                   <span className="truncate text-[13.5px] font-medium text-ink">{scan.source_ref}</span>
                 </div>
                 <div className="mono mt-0.5 truncate text-[11px] text-codeln">{scan.id}</div>
               </div>
-              <StatusBadge status={scan.status} />
-              <SeveritySummaryInline counts={scan.counts} />
+              <div className="flex justify-center">
+                <StatusBadge status={scan.status} />
+              </div>
+              <div className="flex justify-center">
+                <SeveritySummaryInline counts={scan.counts} />
+              </div>
               <div className="text-right text-[12px] text-faint">{relativeTime(scan.finished_at ?? scan.created_at)}</div>
             </div>
           ))}

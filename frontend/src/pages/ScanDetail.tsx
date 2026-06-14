@@ -3,7 +3,8 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { useEffect, useMemo, useState } from "react";
 import { ApiError, api } from "../api/client";
 import StatusBadge from "../components/StatusBadge";
-import { SEV_HEX, SEV_GLOW, CAT_PALETTE, categoryOf, posture, relativeTime } from "../lib/ui";
+import SourceIcon from "../components/SourceIcon";
+import { SEV_COLOR, SEV_GLOW, CAT_PALETTE, categoryOf, posture, relativeTime } from "../lib/ui";
 import { SEVERITIES, TOOLS } from "../api/types";
 import type {
   ScanEvent,
@@ -133,7 +134,8 @@ export default function ScanDetail() {
       <div className="mb-5 flex items-end justify-between gap-4">
         <div className="min-w-0">
           <div className="flex items-center gap-2">
-            <span className="mono text-[10px] uppercase tracking-wide text-lime">{scan.source_type}</span>
+            <SourceIcon type={scan.source_type} />
+            <span className="mono text-[10px] uppercase tracking-wide text-lime-text">{scan.source_type}</span>
             <h1 className="m-0 truncate text-[23px] font-semibold tracking-tight text-head">{scan.source_ref}</h1>
           </div>
           <p className="m-0 mt-1 text-[13.5px] text-faint">
@@ -153,8 +155,8 @@ export default function ScanDetail() {
         <div className="flex w-[268px] flex-shrink-0 items-center gap-[18px] rounded-[14px] border border-line bg-panel px-5 py-[18px]">
           <div className="relative h-[84px] w-[84px] flex-shrink-0">
             <svg width="84" height="84" viewBox="0 0 84 84">
-              <circle cx="42" cy="42" r="36" fill="none" stroke="#1f2229" strokeWidth="8" />
-              <circle cx="42" cy="42" r="36" fill="none" stroke="#c4f24a" strokeWidth="8" strokeLinecap="round" strokeDasharray={dash} strokeDashoffset={offset} transform="rotate(-90 42 42)" style={{ transition: "stroke-dashoffset .6s ease" }} />
+              <circle cx="42" cy="42" r="36" fill="none" stroke="var(--bd)" strokeWidth="8" />
+              <circle cx="42" cy="42" r="36" fill="none" stroke="var(--accent)" strokeWidth="8" strokeLinecap="round" strokeDasharray={dash} strokeDashoffset={offset} transform="rotate(-90 42 42)" style={{ transition: "stroke-dashoffset .6s ease" }} />
             </svg>
             <div className="absolute inset-0 flex items-center justify-center">
               <span className="mono text-[26px] font-bold leading-none text-head">{grade}</span>
@@ -167,9 +169,9 @@ export default function ScanDetail() {
         </div>
 
         {SEVERITIES.filter((s) => s !== "info").map((sev) => (
-          <button key={sev} onClick={() => setSevFilter(sevFilter === sev ? "" : (sev as Severity))} className={`flex flex-1 flex-col gap-3.5 rounded-[14px] border bg-panel px-[18px] py-4 text-left transition-colors ${sevFilter === sev ? "border-lime/40" : "border-line hover:border-[#2c3038]"}`}>
+          <button key={sev} onClick={() => setSevFilter(sevFilter === sev ? "" : (sev as Severity))} className={`flex flex-1 flex-col gap-3.5 rounded-[14px] border bg-panel px-[18px] py-4 text-left transition-colors ${sevFilter === sev ? "border-lime/40" : "border-line hover:border-line2"}`}>
             <div className="flex items-center gap-2">
-              <span className="h-[9px] w-[9px] rounded-[3px]" style={{ background: SEV_HEX[sev], boxShadow: `0 0 8px ${SEV_GLOW[sev]}` }} />
+              <span className="h-[9px] w-[9px] rounded-[3px]" style={{ background: SEV_COLOR[sev], boxShadow: `0 0 8px ${SEV_GLOW[sev]}` }} />
               <span className="text-[12.5px] font-medium capitalize text-dim">{sev}</span>
             </div>
             <span className="mono text-[34px] font-semibold leading-[.9] text-head">{scan.counts[sev]}</span>
@@ -184,7 +186,7 @@ export default function ScanDetail() {
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line px-4 py-3">
             <div className="flex gap-0.5 rounded-lg border border-line2 bg-bar p-[3px]">
               {TABS.map((t) => (
-                <button key={t.key} onClick={() => setTab(t.key)} className={`rounded-md px-3 py-1 text-[12.5px] transition-colors ${tab === t.key ? "bg-lime font-semibold text-base" : "text-dim hover:text-ink"}`}>
+                <button key={t.key} onClick={() => setTab(t.key)} className={`rounded-md px-3 py-1 text-[12.5px] transition-colors ${tab === t.key ? "bg-lime font-semibold text-accent-ink" : "text-dim hover:text-ink"}`}>
                   {t.label}
                 </button>
               ))}
@@ -204,19 +206,19 @@ export default function ScanDetail() {
             </div>
           ) : (
             filtered.map((f, i) => (
-              <div key={f.id} onClick={() => navigate(`/scans/${scanId}/findings/${f.id}`)} className={`row-in grid cursor-pointer grid-cols-[110px_1fr_120px] items-center gap-3.5 border-b border-line-soft px-5 py-3.5 transition-colors last:border-0 hover:bg-[#13161b] sm:grid-cols-[110px_1fr_130px_120px] ${f.triage_status !== "open" ? "opacity-55" : ""}`} style={{ animationDelay: `${Math.min(i, 16) * 20}ms` }}>
+              <div key={f.id} onClick={() => navigate(`/scans/${scanId}/findings/${f.id}`)} className={`row-in grid cursor-pointer grid-cols-[110px_1fr_120px] items-center gap-3.5 border-b border-line-soft px-5 py-3.5 transition-colors last:border-0 hover:bg-hover sm:grid-cols-[110px_1fr_130px_120px] ${f.triage_status !== "open" ? "opacity-55" : ""}`} style={{ animationDelay: `${Math.min(i, 16) * 20}ms` }}>
                 <div className="flex items-center gap-2">
-                  <span className="h-2 w-2 flex-shrink-0 rounded-full" style={{ background: SEV_HEX[f.severity] }} />
-                  <span className="text-[12.5px] font-semibold capitalize" style={{ color: SEV_HEX[f.severity] }}>{f.severity}</span>
+                  <span className="h-2 w-2 flex-shrink-0 rounded-full" style={{ background: SEV_COLOR[f.severity] }} />
+                  <span className="text-[12.5px] font-semibold capitalize" style={{ color: SEV_COLOR[f.severity] }}>{f.severity}</span>
                 </div>
                 <div className="min-w-0">
                   <div className="truncate text-[13.5px] font-medium text-ink">{f.title}</div>
-                  <div className="mono mt-0.5 truncate text-[11.5px] text-[#646a74]">{f.file_path}{f.line_start ? `:${f.line_start}` : ""} · {f.cwe ?? "—"} · {f.tool}</div>
+                  <div className="mono mt-0.5 truncate text-[11.5px] text-faint">{f.file_path}{f.line_start ? `:${f.line_start}` : ""} · {f.cwe ?? "—"} · {f.tool}</div>
                 </div>
                 <div className="hidden sm:block"><span className="rounded-md border border-line2 bg-line-soft px-2 py-[3px] text-[11.5px] text-dim">{categoryOf(f)}</span></div>
                 <div className="flex items-center justify-end gap-2.5">
                   <span className="text-[11.5px] capitalize text-faint">{f.triage_status.replace("_", " ")}</span>
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#3f444c" strokeWidth="2"><path d="M9 6l6 6-6 6" /></svg>
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-codeln"><path d="M9 6l6 6-6 6" /></svg>
                 </div>
               </div>
             ))
@@ -237,7 +239,7 @@ export default function ScanDetail() {
                 categories.map((c) => (
                   <div key={c.name} className="flex flex-col gap-1.5">
                     <div className="flex items-center justify-between text-[12.5px]">
-                      <span className="text-[#c2c7ce]">{c.name}</span>
+                      <span className="text-dim">{c.name}</span>
                       <span className="mono text-faint">{c.count}</span>
                     </div>
                     <div className="h-1.5 overflow-hidden rounded bg-line-soft">
@@ -253,7 +255,7 @@ export default function ScanDetail() {
             <div className="mb-4 flex items-center justify-between">
               <span className="text-[14px] font-semibold text-head">Scanner gate</span>
               <span className="mono flex items-center gap-1.5 text-[11px] text-fainter">
-                <span className={`h-1.5 w-1.5 rounded-full ${isActive ? "pulse-dot" : ""}`} style={{ background: isActive ? "#5cb8ff" : "#4ade80" }} />
+                <span className={`h-1.5 w-1.5 rounded-full ${isActive ? "pulse-dot" : ""}`} style={{ background: isActive ? "var(--sev-low)" : "var(--ok)" }} />
                 {isActive ? "live" : "idle"}
               </span>
             </div>
@@ -261,10 +263,10 @@ export default function ScanDetail() {
               {TOOLS.map((tool) => {
                 const st: ScannerRunState = isActive ? (scannerStates[tool] ?? "pending") : "done";
                 const count = isActive ? scannerFindings[tool] : byTool[tool];
-                const color = st === "error" ? "#fb6f7e" : st === "running" ? "#5cb8ff" : st === "done" ? "#4ade80" : "#5a6068";
+                const color = st === "error" ? "var(--sev-crit)" : st === "running" ? "var(--sev-low)" : st === "done" ? "var(--ok)" : "var(--tx-fainter)";
                 const note = st === "running" ? "scanning…" : st === "pending" ? "queued" : st === "error" ? "failed" : `done · ${count ?? 0} finding${count === 1 ? "" : "s"}`;
                 return (
-                  <div key={tool} className="flex items-center gap-3 rounded-[9px] border border-[#1a1d23] bg-bar px-2.5 py-2.5">
+                  <div key={tool} className="flex items-center gap-3 rounded-[9px] border border-line-soft bg-bar px-2.5 py-2.5">
                     <span className={`h-[9px] w-[9px] flex-shrink-0 rounded-full ${st === "running" ? "pulse-dot" : ""}`} style={{ background: color }} />
                     <div className="min-w-0 flex-1">
                       <div className="mono truncate text-[12.5px] text-ink">{tool}</div>

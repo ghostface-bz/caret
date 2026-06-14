@@ -38,7 +38,7 @@ export default function NewScan() {
       type="button"
       onClick={() => setMode(m)}
       className={`flex-1 rounded-md px-3 py-2 text-[12.5px] font-medium transition-colors ${
-        mode === m ? "bg-lime text-base" : "text-dim hover:text-ink"
+        mode === m ? "bg-lime text-accent-ink" : "text-dim hover:text-ink"
       }`}
     >
       {label}
@@ -63,7 +63,7 @@ export default function NewScan() {
             htmlFor="zip-file"
             className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-line2 bg-bar px-4 py-9 text-center transition-colors hover:border-lime/50"
           >
-            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#7c828c" strokeWidth="1.6"><path d="M12 3v12M7 10l5 5 5-5M5 21h14" /></svg>
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" className="text-faint"><path d="M12 3v12M7 10l5 5 5-5M5 21h14" /></svg>
             <span className="text-[13.5px] text-ink">{file ? file.name : "Drop or choose a .zip archive"}</span>
             <span className="text-[11px] uppercase tracking-wide text-fainter">{file ? `${(file.size / 1024 / 1024).toFixed(2)} MB` : "max 50 MB"}</span>
             <input id="zip-file" type="file" accept=".zip,application/zip" onChange={(e) => setFile(e.target.files?.[0] ?? null)} className="hidden" />
@@ -72,7 +72,7 @@ export default function NewScan() {
           <div>
             <label htmlFor="git-url" className="mb-1.5 block text-[12px] font-medium text-faint">Public git repository</label>
             <div className="flex items-center rounded-lg border border-line2 bg-bar focus-within:border-lime/55">
-              <span className="mono select-none px-2.5 text-lime">$</span>
+              <span className="mono select-none px-2.5 text-lime-text">$</span>
               <input
                 id="git-url"
                 type="text"
@@ -90,12 +90,12 @@ export default function NewScan() {
         <button
           type="submit"
           disabled={submitting}
-          className="flex w-full items-center justify-center gap-2 rounded-lg bg-lime px-4 py-2.5 text-[13px] font-semibold text-base transition-colors hover:bg-lime-bright disabled:cursor-not-allowed disabled:opacity-50"
+          className="flex w-full items-center justify-center gap-2 rounded-lg bg-lime px-4 py-2.5 text-[13px] font-semibold text-accent-ink transition-colors hover:bg-lime-bright disabled:cursor-not-allowed disabled:opacity-50"
           style={{ boxShadow: "0 4px 14px rgba(196,242,74,.18)" }}
         >
           {submitting ? <>dispatching<span className="blink">_</span></> : (
             <>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="#0a0b0d" stroke="#0a0b0d" strokeWidth="2"><path d="M5 4v16M5 4l13 8-13 8" /></svg>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth="2"><path d="M5 4v16M5 4l13 8-13 8" /></svg>
               Run scan
             </>
           )}

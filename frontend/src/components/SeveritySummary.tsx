@@ -1,6 +1,6 @@
 import type { SeverityCounts } from "../api/types";
 import { SEVERITIES } from "../api/types";
-import { SEV_HEX } from "../lib/ui";
+import { SEV_COLOR } from "../lib/ui";
 
 /** Compact severity dots+counts for registry rows. */
 export function SeveritySummaryInline({ counts }: { counts: SeverityCounts }) {
@@ -10,8 +10,8 @@ export function SeveritySummaryInline({ counts }: { counts: SeverityCounts }) {
       {SEVERITIES.map((sev) =>
         counts[sev] ? (
           <span key={sev} className="inline-flex items-center gap-1.5">
-            <span className="h-[7px] w-[7px] rounded-full" style={{ background: SEV_HEX[sev] }} />
-            <span className="mono tnum text-[12.5px]" style={{ color: SEV_HEX[sev] }}>
+            <span className="h-[7px] w-[7px] rounded-full" style={{ background: SEV_COLOR[sev] }} />
+            <span className="mono tnum text-[12.5px]" style={{ color: SEV_COLOR[sev] }}>
               {counts[sev]}
             </span>
           </span>

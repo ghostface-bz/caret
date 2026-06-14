@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useParams } from "react-router-dom";
 import { api } from "../api/client";
 import SeverityBadge from "../components/SeverityBadge";
-import { SEV_HEX, TRIAGE_PILL, relativeTime } from "../lib/ui";
+import { SEV_COLOR, SEV_BG, TRIAGE_PILL, relativeTime } from "../lib/ui";
 import { TRIAGE_LABELS, TRIAGE_STATUSES } from "../api/types";
 import type { Finding, TriageStatus } from "../api/types";
 
@@ -16,11 +16,11 @@ function RoadmapCard({ title, badge, body }: { title: string; badge: string; bod
   return (
     <div className="rounded-[14px] border border-line bg-panel p-5">
       <div className="mb-2 flex items-center gap-2.5">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#c4f24a" strokeWidth="1.8">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="text-lime-text">
           <path d="M12 2v6M12 2 9 5M12 2l3 3" /><circle cx="12" cy="15" r="6" /><path d="M9.5 15l1.7 1.7 3.3-3.4" />
         </svg>
         <span className="text-[14px] font-semibold text-head">{title}</span>
-        <span className="rounded-md border border-lime/30 bg-lime/10 px-2 py-[2px] text-[10px] font-semibold uppercase tracking-wide text-lime">{badge}</span>
+        <span className="rounded-md border border-lime/30 bg-lime/10 px-2 py-[2px] text-[10px] font-semibold uppercase tracking-wide text-lime-text">{badge}</span>
       </div>
       <p className="m-0 text-[13px] leading-relaxed text-faint">{body}</p>
     </div>
@@ -65,12 +65,12 @@ export default function FindingDetail() {
     );
   }
 
-  const hex = SEV_HEX[finding.severity];
+  const hex = SEV_COLOR[finding.severity];
   const pill = TRIAGE_PILL[finding.triage_status];
 
   return (
     <div className="mx-auto max-w-[1320px] px-8 pb-12 pt-6">
-      <Link to={`/scans/${scanId}`} className="mono mb-4 inline-flex items-center gap-2 text-[13px] text-faint hover:text-ink">
+      <Link to={`/scans/${scanId}`} className="mono mb-4 inline-flex items-center gap-2 text-[13px] text-faint hover:text-lime-text">
         <span>←</span> findings <span className="text-fainter">/</span> <span className="text-dim">{finding.cwe ?? finding.rule_id}</span>
       </Link>
 
@@ -96,9 +96,9 @@ export default function FindingDetail() {
           <button
             onClick={() => triageMutation.mutate("resolved")}
             disabled={triageMutation.isPending || finding.triage_status === "resolved"}
-            className="flex items-center gap-1.5 rounded-lg bg-lime px-3.5 py-2 text-[13px] font-semibold text-base transition-colors hover:bg-lime-bright disabled:opacity-50"
+            className="flex items-center gap-1.5 rounded-lg bg-lime px-3.5 py-2 text-[13px] font-semibold text-accent-ink transition-colors hover:bg-lime-bright disabled:opacity-50"
           >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0a0b0d" strokeWidth="2.2"><path d="M20 6 9 17l-5-5" /></svg>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M20 6 9 17l-5-5" /></svg>
             Mark resolved
           </button>
         </div>
@@ -120,9 +120,9 @@ export default function FindingDetail() {
                 {sourceQuery.data.lines.map((ln) => {
                   const focused = ln.n === sourceQuery.data!.focus;
                   return (
-                    <div key={ln.n} className="flex" style={focused ? { background: `${hex}1a`, borderLeft: `2px solid ${hex}` } : undefined}>
-                      <span className="w-12 flex-shrink-0 select-none pr-4 text-right" style={{ color: focused ? hex : "#3f444c" }}>{ln.n}</span>
-                      <span className="whitespace-pre pr-6 text-[#c2c7ce]">{ln.text || " "}</span>
+                    <div key={ln.n} className="flex" style={focused ? { background: SEV_BG[finding.severity], borderLeft: `2px solid ${hex}` } : undefined}>
+                      <span className="w-12 flex-shrink-0 select-none pr-4 text-right" style={{ color: focused ? hex : "var(--tx-ghost)" }}>{ln.n}</span>
+                      <span className="whitespace-pre pr-6 text-dim">{ln.text || " "}</span>
                     </div>
                   );
                 })}

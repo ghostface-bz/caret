@@ -1,133 +1,125 @@
-/* ── Caret Console — design system ──────────────────────────────────────────
-   Near-black UI, lime (#c4f24a) signal accent, IBM Plex Mono/Sans, soft 14px
-   rounded panels. A polished static-analysis console.                          */
+/* ── Caret Console — design system (dark + light) ───────────────────────────
+   Lime (#c4f24a) signal accent, IBM Plex Mono/Sans. All colour decisions live
+   in CSS variables swapped by [data-theme]; Tailwind tokens reference them so
+   structural utilities (bg-panel, text-ink, border-line…) theme automatically. */
 @import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap");
 @import "tailwindcss";
 
+/* dark = default */
+:root {
+  --bg: #0a0b0d; --panel: #0f1115; --panel2: #0c0d10;
+  --bd: #1f2229; --bd2: #24272e; --bd-soft: #16181d; --hover: #13161b;
+  --tx-strong: #f4f6f8; --tx: #e6e8ec; --tx-dim: #9aa0aa; --tx-faint: #7c828c;
+  --tx-fainter: #5a6068; --tx-ghost: #3f444c;
+  --accent: #c4f24a; --accent-hover: #cef560; --accent-ink: #0a0b0d; --accent-text: #c4f24a;
+  --sev-crit: #fb6f7e; --sev-crit-bg: rgba(251,111,126,.1); --sev-crit-bd: rgba(251,111,126,.3);
+  --sev-high: #ff9d4d; --sev-high-bg: rgba(255,159,77,.1); --sev-high-bd: rgba(255,159,77,.3);
+  --sev-med: #ffd24d; --sev-med-bg: rgba(255,210,77,.12); --sev-med-bd: rgba(255,210,77,.3);
+  --sev-low: #5cb8ff; --sev-low-bg: rgba(92,184,255,.1); --sev-low-bd: rgba(92,184,255,.3);
+  --ok: #4ade80; --ok-bg: rgba(74,222,128,.13); --st-open-bg: rgba(255,255,255,.07);
+  --c-teal: #5eead4; --c-violet: #a78bfa; --link: #7dd3fc;
+  --info: #8b95a3; --info-bg: rgba(139,149,163,.12);
+  --shadow: none;
+  color-scheme: dark;
+}
+
+:root[data-theme="light"] {
+  --bg: #f4f6f8; --panel: #ffffff; --panel2: #fafbfc;
+  --bd: #e7e9ed; --bd2: #dde0e6; --bd-soft: #eef0f3; --hover: #f1f3f6;
+  --tx-strong: #0e1014; --tx: #2a2e36; --tx-dim: #5c626c; --tx-faint: #828893;
+  --tx-fainter: #9aa0aa; --tx-ghost: #c2c7cf;
+  --accent: #c4f24a; --accent-hover: #b9ec3c; --accent-ink: #1a2400; --accent-text: #3f6212;
+  --sev-crit: #e11d48; --sev-crit-bg: rgba(225,29,72,.09); --sev-crit-bd: rgba(225,29,72,.28);
+  --sev-high: #ea580c; --sev-high-bg: rgba(234,88,12,.09); --sev-high-bd: rgba(234,88,12,.28);
+  --sev-med: #b45309; --sev-med-bg: rgba(180,83,9,.1); --sev-med-bd: rgba(180,83,9,.28);
+  --sev-low: #2563eb; --sev-low-bg: rgba(37,99,235,.09); --sev-low-bd: rgba(37,99,235,.28);
+  --ok: #16a34a; --ok-bg: rgba(22,163,74,.11); --st-open-bg: rgba(15,18,26,.05);
+  --c-teal: #0d9488; --c-violet: #7c3aed; --link: #2563eb;
+  --info: #6b7280; --info-bg: rgba(107,114,128,.1);
+  --shadow: 0 1px 2px rgba(16,24,40,.04), 0 1px 3px rgba(16,24,40,.06);
+  color-scheme: light;
+}
+
 @theme {
-  --color-base: #0a0b0d; /* app background */
-  --color-bar: #0c0d10; /* sidebar / header / raised insets */
-  --color-panel: #0f1115; /* cards */
-  --color-line: #1f2229; /* card borders */
-  --color-line2: #24272e; /* control borders */
-  --color-line-soft: #16181d; /* row dividers */
-  --color-line-side: #1c1f25; /* sidebar dividers */
+  --color-base: var(--bg);
+  --color-bar: var(--panel2);
+  --color-panel: var(--panel);
+  --color-line: var(--bd);
+  --color-line2: var(--bd2);
+  --color-line-soft: var(--bd-soft);
+  --color-line-side: var(--bd);
+  --color-hover: var(--hover);
 
-  --color-ink: #e6e8ec;
-  --color-head: #f4f6f8;
-  --color-dim: #9aa0aa;
-  --color-faint: #7c828c;
-  --color-fainter: #5a6068;
-  --color-codeln: #3f444c;
+  --color-ink: var(--tx);
+  --color-head: var(--tx-strong);
+  --color-dim: var(--tx-dim);
+  --color-faint: var(--tx-faint);
+  --color-fainter: var(--tx-fainter);
+  --color-codeln: var(--tx-ghost);
 
-  --color-lime: #c4f24a;
-  --color-lime-bright: #cef560;
+  --color-lime: var(--accent);
+  --color-lime-bright: var(--accent-hover);
+  --color-lime-text: var(--accent-text);
+  --color-accent-ink: var(--accent-ink);
 
-  --color-crit: #fb6f7e;
-  --color-high: #ff9d4d;
-  --color-med: #ffd24d;
-  --color-low: #5cb8ff;
-  --color-info: #8b95a3;
-  --color-ok: #4ade80;
-  --color-sky: #7dd3fc;
+  --color-crit: var(--sev-crit);
+  --color-high: var(--sev-high);
+  --color-med: var(--sev-med);
+  --color-low: var(--sev-low);
+  --color-info: var(--info);
+  --color-ok: var(--ok);
+  --color-sky: var(--link);
 
   --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
   --font-sans: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
 }
 
-:root {
-  color-scheme: dark;
-}
-
-html {
-  background: var(--color-base);
-}
+html { background: var(--bg); }
 
 body {
   margin: 0;
   font-family: var(--font-sans);
-  background: var(--color-base);
-  color: var(--color-ink);
+  background: var(--bg);
+  color: var(--tx);
   font-size: 14px;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
 
-::selection {
-  background: color-mix(in srgb, var(--color-lime) 85%, transparent);
-  color: var(--color-base);
-}
+::selection { background: color-mix(in srgb, var(--accent) 85%, transparent); color: var(--accent-ink); }
 
-::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
-}
-::-webkit-scrollbar-thumb {
-  background: #2a2e36;
-  border-radius: 6px;
-  border: 2px solid var(--color-base);
-}
-::-webkit-scrollbar-thumb:hover {
-  background: #363b45;
-}
-::-webkit-scrollbar-track {
-  background: transparent;
-}
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-thumb { background: var(--bd2); border-radius: 6px; border: 2px solid var(--bg); }
+::-webkit-scrollbar-thumb:hover { background: var(--tx-fainter); }
+::-webkit-scrollbar-track { background: transparent; }
 
-@keyframes caret-blink {
-  0%, 49% { opacity: 1; }
-  50%, 100% { opacity: 0; }
-}
-@keyframes caret-pulse {
-  0% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.35; transform: scale(0.7); }
-  100% { opacity: 1; transform: scale(1); }
-}
-@keyframes row-in {
-  from { opacity: 0; transform: translateY(3px); }
-  to { opacity: 1; transform: none; }
-}
-@keyframes sweep-x {
-  0% { transform: translateX(-120%); }
-  100% { transform: translateX(360%); }
-}
+@keyframes caret-blink { 0%,49%{opacity:1} 50%,100%{opacity:0} }
+@keyframes caret-pulse { 0%{opacity:1;transform:scale(1)} 50%{opacity:.35;transform:scale(.7)} 100%{opacity:1;transform:scale(1)} }
+@keyframes row-in { from{opacity:0;transform:translateY(3px)} to{opacity:1;transform:none} }
+@keyframes sweep-x { 0%{transform:translateX(-120%)} 100%{transform:translateX(360%)} }
 
 .blink { animation: caret-blink 1.05s step-end infinite; }
 .pulse-dot { animation: caret-pulse 1.4s ease-in-out infinite; }
 .row-in { animation: row-in 0.32s both; }
 
-/* card primitive */
 .card {
-  background: var(--color-panel);
-  border: 1px solid var(--color-line);
+  background: var(--panel);
+  border: 1px solid var(--bd);
   border-radius: 14px;
+  box-shadow: var(--shadow);
 }
 
-/* indeterminate progress track */
-.sweep {
-  position: relative;
-  overflow: hidden;
-  background: var(--color-line-soft);
-}
+.sweep { position: relative; overflow: hidden; background: var(--bd-soft); }
 .sweep::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  width: 38%;
-  background: linear-gradient(
-    90deg,
-    transparent,
-    color-mix(in srgb, var(--color-lime) 60%, transparent),
-    transparent
-  );
+  content: ""; position: absolute; inset: 0; width: 38%;
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--accent) 60%, transparent), transparent);
   animation: sweep-x 1.3s ease-in-out infinite;
 }
 
-/* form controls */
 .field {
-  background: var(--color-bar);
-  border: 1px solid var(--color-line2);
-  color: var(--color-ink);
+  background: var(--panel2);
+  border: 1px solid var(--bd2);
+  color: var(--tx);
   font-family: var(--font-sans);
   font-size: 13px;
   padding: 0.5rem 0.65rem;
@@ -135,12 +127,8 @@ body {
   outline: none;
   transition: border-color 0.12s ease;
 }
-.field:focus {
-  border-color: color-mix(in srgb, var(--color-lime) 55%, var(--color-line2));
-}
-.field::placeholder {
-  color: var(--color-fainter);
-}
+.field:focus { border-color: color-mix(in srgb, var(--accent) 55%, var(--bd2)); }
+.field::placeholder { color: var(--tx-fainter); }
 
 .mono { font-family: var(--font-mono); }
 .tnum { font-variant-numeric: tabular-nums; }
